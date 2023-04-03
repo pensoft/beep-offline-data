@@ -46,7 +46,6 @@ class ImageMarkRecognitionCron extends PensoftOmrCommands
     public function __construct()
     {
         parent::__construct();
-        $this->markerImage = new Imagick(storage_path($this->path . 'marker-200.jpg'));
     }
 
     /**
@@ -57,6 +56,8 @@ class ImageMarkRecognitionCron extends PensoftOmrCommands
         $this->writeOutput('TEST IMAGICK MARK RECOGNITION COMMAND STARTED AT: ' . Carbon::now()->format('H:i:s'));
 
         try {
+            $this->markerImage = new Imagick(storage_path($this->path . 'marker-200.jpg'));
+            
             $filename = !empty($this->option('name')) ? $this->option('name') : 'scan';
             $filepath = storage_path($this->path . $filename . '.jpg');
             if (!File::exists($filepath)) {
