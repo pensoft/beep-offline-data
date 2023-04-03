@@ -275,7 +275,7 @@ class MarkRecognition
      */
     private function initializeMarkerImage()
     {
-        $this->markerImage = new Imagick(storage_path('app/public/scanner/configs/marker.jpg'));
+        $this->markerImage = new Imagick(storage_path('app/scanner/settings/marker.jpg'));
     }
 
     /**
