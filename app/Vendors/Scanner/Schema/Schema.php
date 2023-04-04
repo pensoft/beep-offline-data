@@ -41,9 +41,13 @@ class Schema
     /** @var mixed */
     private mixed $labels;
 
+    /** @var mixed */
+    private mixed $markers;
+
     /** @var string */
     private string $folder;
 
+    /** @var array */
     private array $languages = [];
 
     /**
@@ -76,6 +80,7 @@ class Schema
 
         $this->setAreaAdjustment($this->getSchema()->area_adjustment_percentage);
         $this->setTolerance($this->getSchema()->tolerance);
+        $this->setMarkers($this->getSchema()->markers);
 
         $this->setTopLeft(
             new Point($this->getSchema()->markers->top->left->x, $this->getSchema()->markers->top->left->y)
@@ -392,5 +397,21 @@ class Schema
     public function setLanguages(array $languages): void
     {
         $this->languages = $languages;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getMarkers(): mixed
+    {
+        return $this->markers;
+    }
+
+    /**
+     * @param mixed $markers
+     */
+    public function setMarkers(mixed $markers): void
+    {
+        $this->markers = $markers;
     }
 }

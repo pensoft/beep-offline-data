@@ -73,14 +73,14 @@ class MarkRecognition
      * @throws \ImagickDrawException
      * @throws \ImagickException
      */
-    public function recognizeMarkers(bool $drawMarks = true)
+    public function recognizeMarkers(bool $drawMarker = true)
     {
-        $this->setTopLeftMarker();
-        $this->setTopRightMarker();
-        $this->setBottomLeftMarker();
-        $this->setBottomRightMarker();
+        $this->setTopLeftMarker($drawMarker);
+        $this->setTopRightMarker($drawMarker);
+        $this->setBottomLeftMarker($drawMarker);
+        $this->setBottomRightMarker($drawMarker);
 
-        if (!empty($drawMarks)) {
+        if (!empty($drawMarker)) {
             $this->getImage()->drawImage($this->getDraw());
         }
 
@@ -119,10 +119,12 @@ class MarkRecognition
     }
 
     /**
+     * @param bool $drawMarker
+     *
      * @throws \ImagickDrawException
      * @throws \ImagickException
      */
-    public function setTopLeftMarker()
+    public function setTopLeftMarker(bool $drawMarker = true)
     {
         $position    = 'top_left';
         $markerImage = clone $this->getMarkerImage();
@@ -133,16 +135,18 @@ class MarkRecognition
             $position
         );
 
-        $coordinates = $this->getMarkRecognition($markerImage, 0, 0, $position);
+        $coordinates = $this->getMarkRecognition($markerImage, 0, 0, $position, $drawMarker);
 
         $this->setTopLeft(new Point($coordinates['x'], $coordinates['y']));
     }
 
     /**
+     * @param bool $drawMarker
+     *
      * @throws \ImagickDrawException
      * @throws \ImagickException
      */
-    public function setTopRightMarker()
+    public function setTopRightMarker(bool $drawMarker = true)
     {
         $position    = 'top_right';
         $markerImage = clone $this->getMarkerImage();
@@ -154,16 +158,18 @@ class MarkRecognition
         );
 
         $offsetX     = $this->getImage()->getImageWidth() * (1 - $this->widthSearchRation);
-        $coordinates = $this->getMarkRecognition($markerImage, $offsetX, 0, $position);
+        $coordinates = $this->getMarkRecognition($markerImage, $offsetX, 0, $position, $drawMarker);
 
         $this->setTopRight(new Point($coordinates['x'], $coordinates['y']));
     }
 
     /**
+     * @param bool $drawMarker
+     *
      * @throws \ImagickDrawException
      * @throws \ImagickException
      */
-    public function setBottomLeftMarker()
+    public function setBottomLeftMarker(bool $drawMarker = true)
     {
         $position    = 'bottom_left';
         $markerImage = clone $this->getMarkerImage();
@@ -175,16 +181,18 @@ class MarkRecognition
         );
 
         $offsetY     = $this->getImage()->getImageHeight() * (1 - $this->heightSearchRation);
-        $coordinates = $this->getMarkRecognition($markerImage, 0, $offsetY, $position);
+        $coordinates = $this->getMarkRecognition($markerImage, 0, $offsetY, $position, $drawMarker);
 
         $this->setBottomLeft(new Point($coordinates['x'], $coordinates['y']));
     }
 
     /**
+     * @param bool $drawMarker
+     *
      * @throws \ImagickDrawException
      * @throws \ImagickException
      */
-    public function setBottomRightMarker()
+    public function setBottomRightMarker(bool $drawMarker = true)
     {
         $position    = 'bottom_right';
         $markerImage = clone $this->getMarkerImage();
@@ -197,7 +205,7 @@ class MarkRecognition
 
         $offsetX     = $this->getImage()->getImageWidth() * (1 - $this->widthSearchRation);
         $offsetY     = $this->getImage()->getImageHeight() * (1 - $this->heightSearchRation);
-        $coordinates = $this->getMarkRecognition($markerImage, $offsetX, $offsetY, $position);
+        $coordinates = $this->getMarkRecognition($markerImage, $offsetX, $offsetY, $position, $drawMarker);
 
         $this->setBottomRight(new Point($coordinates['x'], $coordinates['y']));
     }
@@ -207,12 +215,13 @@ class MarkRecognition
      * @param float    $offsetX
      * @param float    $offsetY
      * @param string   $position
+     * @param bool     $drawMarker
      *
      * @return int[]
      * @throws \ImagickDrawException
      * @throws \ImagickException
      */
-    public function getMarkRecognition(Imagick $markerImage, float $offsetX, float $offsetY, string $position): array
+    public function getMarkRecognition(Imagick $markerImage, float $offsetX, float $offsetY, string $position, bool $drawMarker = true): array
     {
         $width  = $this->getImage()->getImageWidth() * $this->widthSearchRation;
         $height = $this->getImage()->getImageHeight() * $this->heightSearchRation;
@@ -238,7 +247,10 @@ class MarkRecognition
         $this->setRegionDraw();
         $this->getRegionDraw()->rectangle($offset['x'] - 10, $offset['y'] - 10, $offset['x'] + 10, $offset['y'] + 10);
         $this->getRegionDraw()->circle($offset['x'], $offset['y'], $offset['x'] + 2, $offset['y']);
-        $region->drawImage($this->getRegionDraw());
+
+        if ($drawMarker) {
+            $region->drawImage($this->getRegionDraw());
+        }
         $region->writeImage($this->getFolder() . '/' . 'region_' . $position . '_drawn.jpg');
 
         $this->getDraw()->rectangle($x - 10, $y - 10, $x + 10, $y + 10);

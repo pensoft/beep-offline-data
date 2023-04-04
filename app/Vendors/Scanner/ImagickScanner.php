@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Imagick;
 
 class ImagickScanner
@@ -115,6 +116,12 @@ class ImagickScanner
 
             $this->storeScanResults($scanResults, $folder);
             $this->addScanResult($page, $this->parseScanResults($scanResults));
+        }
+
+        if (!env('SCANNER_MODE_DEBUG')) {
+            if (File::isDirectory(storage_path($this->getScanDirectory()))) {
+                Storage::deleteDirectory(str_replace('app/', '', $this->getScanDirectory()));
+            }
         }
     }
 
