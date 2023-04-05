@@ -13,10 +13,6 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', 'App\Http\Controllers\Dashboard\DashboardController@index')->name('dashboard');
-Route::get('/view/{dpi?}', 'App\Http\Controllers\Dashboard\DashboardController@view')->name('view');
-Route::get('tests/ivo', 'App\Http\Controllers\Tests\TestsIvoController@index')->name('TestsIvo');
-
 Route::group(
     [
         'namespace' => 'App\Http\Controllers\Scanner',
@@ -38,9 +34,3 @@ Route::group(
         );
     }
 );
-
-/*
-Route::get('/', function () {
-    return view('welcome');
-});
-*/
