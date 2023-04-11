@@ -45,7 +45,8 @@ class ScansController extends ScannersController
         return response()
             ->json(
                 [
-                    'scans' => $imagickScanner->getScanResults(),
+                    'app_version' => $imagickScanner->getAppVersion(),
+                    'scans'       => $imagickScanner->getScanResults(),
                 ]
             );
     }
