@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
+use DOMDocument;
 
 class ImagickScanner
 {
@@ -33,6 +34,9 @@ class ImagickScanner
 
     /** @var mixed */
     private mixed $userLocale;
+
+    /** @var string */
+    private string $appVersion;
 
     /** @var string */
     private string $scanDirectory;
@@ -70,6 +74,7 @@ class ImagickScanner
 
         $this->setBlobReturns($request);
         $this->setLanguages($request);
+        $this->setAppVersion();
     }
 
     /**
@@ -417,5 +422,25 @@ class ImagickScanner
         $settings = !empty($request->get('settings', [])) ? $request->get('settings') : [];
 
         $this->blobReturns = !empty($settings['return_blob']) ? $settings['return_blob'] : [];
+    }
+
+    /**
+     * @return string
+     */
+    public function getAppVersion(): string
+    {
+        return $this->appVersion;
+    }
+
+    /**
+     * Set app version from Schema
+     */
+    public function setAppVersion(): void
+    {
+        $document = new DOMDocument();
+        $document->loadXML($this->getSvg());
+
+        $svg              = $document->getElementsByTagName('svg');
+        $this->appVersion = $svg[0]->getAttribute('data-app-version') ?? '';
     }
 }
