@@ -113,7 +113,7 @@ class NumericLabel extends Label
 
         if ($this->getType() === 'number') {
             $ocr->psm(7);
-            $ocr->allowlist(range(0, 9), ',.');
+            $ocr->allowlist(range(0, 9), '-_,.');
         } else {
             $ocr->psm(10);
             $ocr->allowlist(range(0, 9));

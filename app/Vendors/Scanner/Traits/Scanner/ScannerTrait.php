@@ -14,19 +14,11 @@ trait ScannerTrait
      */
     public function getExtensionFromBlob($blob, bool $lowerCase = false): ?string
     {
-        preg_match('/data:image\/(.*)\;base64,/', $blob, $matches);
+        preg_match('/data:image\/(.*)\;base64,/', substr($blob, 0, 100), $matches);
 
         $extension = $matches[1] ?? null;
 
-        if (mb_strtolower($extension) === 'jpeg') {
-            $extension = mb_strtoupper('jpg');
-        }
-
-        if ($lowerCase) {
-            $extension = mb_strtolower($extension);
-        }
-
-        return $extension;
+        return $lowerCase ? mb_strtolower($extension) : $extension;
     }
 
     /**
