@@ -71,7 +71,8 @@ class ImagickScanner
         );
         $this->setLog($log);
         $this->setSvg($request->get('svg'));
-
+        $this->storeSvg($scanDirectory);
+        
         $this->setBlobReturns($request);
         $this->setLanguages($request);
         $this->setAppVersion();
@@ -372,6 +373,16 @@ class ImagickScanner
     public function setSvg(string $svg): void
     {
         $this->svg = $svg;
+    }
+
+    /**
+     * @param string $folder
+     *
+     * @return void
+     */
+    private function storeSvg(string $folder)
+    {
+        File::put(storage_path($folder) . '/' . 'schema.svg', $this->getSvg());
     }
 
     /**

@@ -56,7 +56,7 @@ class CheckboxLabel extends Label
     public function scan(string $folder)
     {
         $labelImage = $this->getLabelImage();
-        //        $labelImage->blackThresholdImage('grey');
+
         $labelImage->writeImage(
             $folder . '/' . $this->getParentCategoryId() . '_' . $this->getCategoryId() . '_' . rand(10, 10000) . '.jpg'
         );
