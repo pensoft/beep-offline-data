@@ -46,4 +46,21 @@ trait ScannerTrait
 
         return $basePath . str_replace('.', '.', $ip) . '_' . $date->format('His');
     }
+
+    /**
+     * @param string $label
+     *
+     * @return string
+     */
+    public function getLabelKey(string $label)
+    {
+        // remove spaces
+        $label = trim($label);
+
+        // to lowercase
+        $label = mb_strtolower($label);
+
+        // return hashed value
+        return md5($label);
+    }
 }

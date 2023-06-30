@@ -53,7 +53,7 @@ class CheckboxLabel extends Label
      *
      * @throws \ImagickException
      */
-    public function scan(string $folder)
+    public function scan(string $folder): void
     {
         $labelImage = $this->getLabelImage();
 
@@ -121,7 +121,7 @@ class CheckboxLabel extends Label
      * @throws \ImagickException
      * @throws \ImagickPixelException
      */
-    public function markLabelImage(string $color = '#00CC00')
+    public function markLabelImage(string $color = '#00CC00'): void
     {
         parent::markLabelImage($color);
     }
@@ -137,7 +137,7 @@ class CheckboxLabel extends Label
     /**
      * @param int $tolerance
      */
-    public function setTolerance(int $tolerance)
+    public function setTolerance(int $tolerance): void
     {
         $this->tolerance = $tolerance;
     }
@@ -153,7 +153,7 @@ class CheckboxLabel extends Label
     /**
      * @param int $count
      */
-    public function setPixels(int $count)
+    public function setPixels(int $count): void
     {
         $this->pixels = $count;
     }
@@ -169,7 +169,7 @@ class CheckboxLabel extends Label
     /**
      * @param int $count
      */
-    public function setBlackPixels(int $count)
+    public function setBlackPixels(int $count): void
     {
         $this->blackPixels = $count;
     }
@@ -185,7 +185,7 @@ class CheckboxLabel extends Label
     /**
      * @param int $count
      */
-    public function setWhitePixels(int $count)
+    public function setWhitePixels(int $count): void
     {
         $this->whitePixels = $count;
     }

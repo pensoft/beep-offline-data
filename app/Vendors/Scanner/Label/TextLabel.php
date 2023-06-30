@@ -35,14 +35,16 @@ class TextLabel extends Label
 
     /**
      * @param string $folder
+     * @param array  $externalScanResults
      *
+     * @return void
      * @throws \ImagickException
      * @throws \thiagoalessio\TesseractOCR\TesseractOcrException
      */
-    public function scan(string $folder)
+    public function scan(string $folder, array $externalScanResults = []): void
     {
         $labelImage = $this->getLabelImage();
-        $this->readText($labelImage, $folder);
+        $this->readText($labelImage, $folder, $externalScanResults);
         $this->getLog()->debug('SCANNED TEXT: ' . $this->getValue());
         $this->getLog()->debug('_______________________________________________');
 
@@ -73,7 +75,7 @@ class TextLabel extends Label
      * @throws \ImagickException
      * @throws \ImagickPixelException
      */
-    public function markLabelImage(string $color = '#00CC00')
+    public function markLabelImage(string $color = '#00CC00'): void
     {
         parent::markLabelImage($color);
     }
@@ -81,11 +83,13 @@ class TextLabel extends Label
     /**
      * @param \Imagick $image
      * @param string   $folder
+     * @param array    $externalScanResults
      *
+     * @return void
      * @throws \ImagickException
      * @throws \thiagoalessio\TesseractOCR\TesseractOcrException
      */
-    public function readText(Imagick $image, string $folder)
+    public function readText(Imagick $image, string $folder, array $externalScanResults = []): void
     {
         /*
          * PSM: list of supported page segmentation modes
@@ -111,12 +115,28 @@ class TextLabel extends Label
         //        $image->sharpenImage(0, 25);
         $image->writeImage($path);
 
-        $ocr = new TesseractOCR($path);
+        $value = null;
+        // Get the scan result from external OCR engines
+        $searchKey = $this->getLabelKey($this->getTextLabel());
+        if (!empty($externalScanResults[$searchKey])) {
+            $externalScan = $externalScanResults[$searchKey];
+            $this->getLog()->debug('EXTERNAL SCAN: ' . json_encode($externalScan));
 
-        $languages = !empty($this->getSchema()->getLanguages()) ? $this->getSchema()->getLanguages() : ['eng'];
-        $ocr->lang(implode(', ', $languages))
-            ->psm(6);
+            $value = implode(' ', array_column($externalScan, 'value'));
+            $this->getLog()->debug('EXTERNAL SCAN VALUE: ' . $value);
+        }
 
-        $this->setValue($ocr->run());
+        // If there is no scan result, scan with Tesseract
+        if (empty($value)) {
+            $ocr = new TesseractOCR($path);
+
+            $languages = !empty($this->getSchema()->getLanguages()) ? $this->getSchema()->getLanguages() : ['eng'];
+            $ocr->lang(implode(', ', $languages))->psm(6);
+
+            $value = $ocr->run();
+            $this->getLog()->debug('TESSERACT SCAN VALUE: ' . $value);
+        }
+
+        $this->setValue($value);
     }
 }

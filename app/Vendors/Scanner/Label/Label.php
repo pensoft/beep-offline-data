@@ -6,6 +6,7 @@ use App\Vendors\Scanner\Config\Config;
 use App\Vendors\Scanner\Converter\Dpm;
 use App\Vendors\Scanner\Point\Point;
 use App\Vendors\Scanner\Schema\Schema;
+use App\Vendors\Scanner\Traits\Scanner\ScannerTrait;
 use Illuminate\Support\Facades\Log;
 use Imagick;
 use ImagickDraw;
@@ -13,6 +14,8 @@ use ImagickPixel;
 
 class Label
 {
+    use ScannerTrait;
+
     /** @var \Imagick */
     private Imagick $image;
 
@@ -41,6 +44,9 @@ class Label
 
     /** @var string */
     protected string $parent_category_id;
+
+    /** @var string */
+    protected string $textLabel;
 
     /** @var string */
     protected string $type;
@@ -91,13 +97,12 @@ class Label
     ) {
         $this->setFolder($folder);
 
-        //        $this->log = Log::channel('PensoftScanner');
         $this->log = Log::build(
             [
-            'driver' => 'single',
-            'path'   => $folder . '/' . 'scan.log',
-            'level'  => env('SCANNER_LOG_MODE', 'debug'),
-        ]
+                'driver' => 'single',
+                'path'   => $folder . '/' . 'scan.log',
+                'level'  => config('scanner.log_mode'),
+            ]
         );
         $this->log->debug('LABEL DATA: ' . json_encode($labelData));
 
@@ -134,19 +139,21 @@ class Label
 
         $this->setParentCategoryId($this->getLabelData()->parent_category_id ?? '');
         $this->getLog()->debug('Label parent category id: ' . $this->getParentCategoryId());
+
         $this->setType($this->getLabelData()->type ?? '');
+        $this->getLog()->debug('Label type: ' . $this->getType());
+
+        $this->setTextLabel($this->getLabelData()->label ?? '');
+        $this->getLog()->debug('Label text label: ' . $this->getTextLabel());
 
         $topLeft = $this->getSchema()->getTopLeft();
-
-        $pageHeight = $this->getConfig()->getHeight();
-        $pageWidth  = $this->getConfig()->getWidth();
 
         $x = $this->getLabelData()->x - $topLeft->getX();
         $y = $this->getLabelData()->y - $topLeft->getY();
         $this->getLog()->debug('Point A: [' . $x . 'x' . $y . ']');
 
-        $dpmX = $this->getDpm()->getDpmX(); // $this->getLinearDmpX($x, $y);
-        $dpmY = $this->getDpm()->getDpmY(); // $this->getLinearDmpY($x, $y);
+        $dpmX = $this->getDpm()->getDpmX();
+        $dpmY = $this->getDpm()->getDpmY();
         $x    *= $dpmX;
         $y    *= $dpmY;
         $this->getLog()->debug('Point A x DPM: [' . $x . 'x' . $y . ']');
@@ -154,16 +161,6 @@ class Label
         $x += $this->getConfig()->getTopLeft()->getX();
         $y += $this->getConfig()->getTopLeft()->getY();
         $this->getLog()->debug('Point A position from 0x0: [' . $x . 'x' . $y . ']');
-
-        /*
-        $offsetX = $this->getOffsetX($x, $y, $pageWidth, $pageHeight);
-        $offsetY = $this->getOffsetY($x, $y, $pageWidth, $pageHeight);
-        $this->getLog()->debug('Point A offset: [' . $offsetX . 'x' . $offsetY . ']');
-
-        $x += $offsetX;
-        $y += $offsetY;
-        $this->getLog()->debug('Point A position + offset: [' . $x . 'x' . $y . ']');
-        */
 
         $adjustmentX = $this->getAdjustmentX(true);
         $adjustmentY = $this->getAdjustmentY(true);
@@ -179,8 +176,8 @@ class Label
         $y = $this->getLabelData()->y + $this->getLabelData()->height - $topLeft->getY();
         $this->getLog()->debug('Point B: [' . $x . 'x' . $y . ']');
 
-        $dpmX = $this->getDpm()->getDpmX(); // $this->getLinearDmpX($x, $y);
-        $dpmY = $this->getDpm()->getDpmY(); // $this->getLinearDmpY($x, $y);
+        $dpmX = $this->getDpm()->getDpmX();
+        $dpmY = $this->getDpm()->getDpmY();
         $x    *= $dpmX;
         $y    *= $dpmY;
         $this->getLog()->debug('Point B x DPM: [' . $x . 'x' . $y . ']');
@@ -188,16 +185,6 @@ class Label
         $x += $this->getConfig()->getTopLeft()->getX();
         $y += $this->getConfig()->getTopLeft()->getY();
         $this->getLog()->debug('Point B position from 0x0: [' . $x . 'x' . $y . ']');
-
-        /*
-        $offsetX = $this->getOffsetX($x, $y, $pageWidth, $pageHeight);
-        $offsetY = $this->getOffsetY($x, $y, $pageWidth, $pageHeight);
-        $this->getLog()->debug('Point B offset: [' . $offsetX . 'x' . $offsetY . ']');
-
-        $x += $offsetX;
-        $y += $offsetY;
-        $this->getLog()->debug('Point B position + offset: [' . $x . 'x' . $y . ']');
-        */
 
         $x = round($x - $adjustmentX);
         $y = round($y - $adjustmentY);
@@ -369,7 +356,7 @@ class Label
      * @throws \ImagickException
      * @throws \ImagickPixelException
      */
-    public function markLabelImage(string $color)
+    public function markLabelImage(string $color): void
     {
         $this->getDraw()->setStrokeColor(new ImagickPixel($color));
 
@@ -393,7 +380,7 @@ class Label
     /**
      * @param \Imagick $image
      */
-    public function setImage(Imagick $image)
+    public function setImage(Imagick $image): void
     {
         $this->image = $image;
     }
@@ -409,7 +396,7 @@ class Label
     /**
      * @param string $category_id
      */
-    public function setCategoryId(string $category_id)
+    public function setCategoryId(string $category_id): void
     {
         $this->category_id = $category_id;
     }
@@ -473,7 +460,7 @@ class Label
     /**
      * @param string $value
      */
-    public function setValue(string $value)
+    public function setValue(string $value): void
     {
         $this->value = $value;
     }
@@ -636,5 +623,21 @@ class Label
     public function setDpm(Dpm $dpm): void
     {
         $this->dpm = $dpm;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTextLabel(): string
+    {
+        return $this->textLabel;
+    }
+
+    /**
+     * @param string $textLabel
+     */
+    public function setTextLabel(string $textLabel): void
+    {
+        $this->textLabel = $textLabel;
     }
 }

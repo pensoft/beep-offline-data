@@ -58,7 +58,7 @@ class MarkRecognition
             [
                 'driver' => 'single',
                 'path'   => $folder . '/' . 'scan.log',
-                'level'  => env('SCANNER_LOG_MODE', 'debug'),
+                'level'  => config('scanner.log_mode'),
             ]
         );
 
@@ -296,7 +296,7 @@ class MarkRecognition
     private function initializeDpm()
     {
         $this->setDpmX($this->getImage()->getImageWidth() / $this->getSchema()->getSchema()->width);
-        $this->setDpmY($this->getImage()->getImageHeight() / env('SVG_PAGE_HEIGHT_MM'));
+        $this->setDpmY($this->getImage()->getImageHeight() / config('scanner.svg.height'));
 
         $this->getLog()->debug('DPM: [' . $this->getDpmX() . 'x' . $this->getDpmY() . ']');
     }

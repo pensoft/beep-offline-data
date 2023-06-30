@@ -44,6 +44,18 @@
         </div>
 
         <div class="row" style="margin-bottom: 20px;">
+            <label class="col-lg-12" for="language">
+                OCR Engine
+            </label>
+            <div class="col-lg-12">
+                <select name="ocr_engine" id="ocr_engine" class="form-select">
+                    <option value="tesseract">Tesseract</option>
+                    <option value="aws">AWS Textract</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row" style="margin-bottom: 20px;">
             <label class="col-lg-12" for="svg">
                 SVG
             </label>

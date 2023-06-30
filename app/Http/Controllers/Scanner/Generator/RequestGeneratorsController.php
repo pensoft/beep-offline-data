@@ -55,10 +55,11 @@ class RequestGeneratorsController extends Controller
                 "return_blob" => !empty($request->get('return_blob', [])) ? $request->get('return_blob') : [],
             ],
             "data-user-locale" => !empty($request->get('language', [])) ? $request->get('language') : [],
+            "ocr_engine"       => $request->get('ocr_engine', 'tesseract'),
         ];
 
         $headers = [
-            "token" => env('SCANNER_TOKEN_SECRET'),
+            "token" => config('scanner.token_secret'),
         ];
 
         $request->session()->put(['body' => $body, 'headers' => $headers]);

@@ -2,12 +2,36 @@
 
 namespace App\Vendors\Scanner\Services\AWS\Textract;
 
+use App\Vendors\Scanner\Traits\Scanner\ScannerTrait;
 use Aws\Textract\TextractClient;
+use Exception;
+use Illuminate\Support\Facades\Log;
+use Psr\Log\LoggerInterface;
 
 class DocumentAnalyzer
 {
-    public function __construct(private string $scan)
+    use ScannerTrait;
+
+    private string $folder;
+    private string $filename;
+
+    private string $error = '';
+
+    /** @var \Psr\Log\LoggerInterface */
+    protected LoggerInterface $log;
+
+    public function __construct(string $folder, string $filename)
     {
+        $this->setFolder($folder);
+        $this->setFilename($filename);
+
+        $this->log = Log::build(
+            [
+                'driver' => 'single',
+                'path'   => $folder . '/' . 'scan.log',
+                'level'  => config('scanner.log_mode'),
+            ]
+        );
     }
 
     /**
@@ -15,14 +39,18 @@ class DocumentAnalyzer
      */
     public function analyze(): array
     {
-        $blocks = $this->getBlocks();
+        $blocks = $this->analyzeDocument();
 
         // Get key and value maps
         $keyMap   = $this->getKeyMaps($blocks);
         $valueMap = $this->getValueMaps($blocks);
         $blockMap = $this->getBlockMaps($blocks);
 
-        return $this->getKeyValueRelationships($keyMap, $valueMap, $blockMap);
+        $analyzeResults = $this->getKeyValueRelationships($keyMap, $valueMap, $blockMap);
+
+        $this->getLog()->debug('AWS Analyze results: ' . json_encode($analyzeResults));
+
+        return $analyzeResults;
     }
 
     /**
@@ -38,12 +66,13 @@ class DocumentAnalyzer
         foreach ($keyMap as $blockId => $keyBlock) {
             $valueBlock = $this->findValueBlock($keyBlock, $valueMap);
             $label      = $this->getText($keyBlock, $blockMap);
+            $key        = $this->getLabelKey($label);
             $value      = $this->getText($valueBlock, $blockMap);
 
-            $keyValues[mb_strtolower($label)][] = [
+            $keyValues[$key][] = [
                 'block_id' => $blockId,
-                'label' => $label,
-                'value' => $value,
+                'label'    => trim($label),
+                'value'    => trim($value),
             ];
         }
 
@@ -109,10 +138,9 @@ class DocumentAnalyzer
     {
         $keyMap = [];
         foreach ($blocks as $block) {
-            $block_id = $block['Id'];
             if ($block['BlockType'] == "KEY_VALUE_SET") {
                 if (in_array('KEY', $block['EntityTypes'])) {
-                    $keyMap[$block_id] = $block;
+                    $keyMap[$block['Id']] = $block;
                 }
             }
         }
@@ -129,10 +157,9 @@ class DocumentAnalyzer
     {
         $valueMap = [];
         foreach ($blocks as $block) {
-            $block_id = $block['Id'];
             if ($block['BlockType'] == "KEY_VALUE_SET") {
                 if (!in_array('KEY', $block['EntityTypes'])) {
-                    $valueMap[$block_id] = $block;
+                    $valueMap[$block['Id']] = $block;
                 }
             }
         }
@@ -149,8 +176,7 @@ class DocumentAnalyzer
     {
         $blockMap = [];
         foreach ($blocks as $block) {
-            $block_id            = $block['Id'];
-            $blockMap[$block_id] = $block;
+            $blockMap[$block['Id']] = $block;
         }
 
         return $blockMap;
@@ -159,20 +185,21 @@ class DocumentAnalyzer
     /**
      * @return array
      */
-    private function getBlocks(): array
+    private function analyzeDocument(): array
     {
-        $client = new TextractClient([
-            'region'      => 'eu-west-3',
-            'version'     => 'latest',
-            'credentials' => [
-                'key'    => env('AWS_ACCESS_KEY_ID'),
-                'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            ],
-        ]);
+        $client = new TextractClient(
+            [
+                'region'      => 'eu-west-3',
+                'version'     => 'latest',
+                'credentials' => [
+                    'key'    => env('AWS_ACCESS_KEY_ID'),
+                    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+                ],
+            ]
+        );
 
-        $filename     = 'scan_1.jpg';
-        $file         = fopen(storage_path('app/public/scans/' . $filename), 'rb');
-        $fileContents = fread($file, filesize(storage_path('app/public/scans/' . $filename)));
+        $file         = fopen($this->getFolder() . '/' . $this->getFilename(), 'rb');
+        $fileContents = fread($file, filesize($this->getFolder() . '/' . $this->getFilename()));
         fclose($file);
 
         $options = [
@@ -182,29 +209,73 @@ class DocumentAnalyzer
             'FeatureTypes' => ['FORMS'], // REQUIRED
         ];
 
-        $response = $client->analyzeDocument($options);
+        $results = [];
+        try {
+            $response = $client->analyzeDocument($options);
 
-        $results = $response->toArray();
-        if (!empty($results['Blocks'])) {
-            return $results['Blocks'];
+            $response = $response->toArray();
+            $results  = $response['Blocks'] ?? [];
+        } catch (Exception $exception) {
+            $this->setError($exception->getMessage());
+            $this->getLog()->error('AWS Analyze Document error: ' . $exception->getMessage());
         }
 
-        return [];
+        return $results;
     }
 
     /**
      * @return string
      */
-    public function getScan(): string
+    public function getFolder(): string
     {
-        return $this->scan;
+        return $this->folder;
     }
 
     /**
-     * @param string $scan
+     * @param string $folder
      */
-    public function setScan(string $scan): void
+    public function setFolder(string $folder): void
     {
-        $this->scan = $scan;
+        $this->folder = $folder;
+    }
+
+    /**
+     * @return string
+     */
+    public function getError(): string
+    {
+        return $this->error;
+    }
+
+    /**
+     * @param string $error
+     */
+    public function setError(string $error): void
+    {
+        $this->error = $error;
+    }
+
+    /**
+     * @return string
+     */
+    public function getFilename(): string
+    {
+        return $this->filename;
+    }
+
+    /**
+     * @param string $filename
+     */
+    public function setFilename(string $filename): void
+    {
+        $this->filename = $filename;
+    }
+
+    /**
+     * @return \Psr\Log\LoggerInterface
+     */
+    public function getLog(): LoggerInterface
+    {
+        return $this->log;
     }
 }
