@@ -157,8 +157,11 @@ POST
     "settings": {
         "return_blob": ["text", "number", "single-digit", "checkbox"]
     },
-    "data-user-locale": ["en"]
+    "data-user-locale": ["en"],
+    "ocr_engine": "aws"
 }
+
+# OCR Engine possible values: aws, tesseract
 
 # Request generator can be accessed at this address
 https://{DOMAIN-NAME}/scanner/generator
