@@ -43,7 +43,7 @@ class Dpm
             [
                 'driver' => 'single',
                 'path'   => $folder . '/' . 'scan.log',
-                'level'  => env('SCANNER_LOG_MODE', 'debug'),
+                'level'  => config('scanner.log_mode'),
             ]
         );
 

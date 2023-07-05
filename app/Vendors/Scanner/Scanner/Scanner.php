@@ -54,7 +54,7 @@ class Scanner
             [
                 'driver' => 'single',
                 'path'   => $folder . '/' . 'scan.log',
-                'level'  => env('SCANNER_LOG_MODE', 'debug'),
+                'level'  => config('scanner.log_mode'),
             ]
         );
 
@@ -66,13 +66,15 @@ class Scanner
     }
 
     /**
+     * @param array $externalScanResults
+     *
      * @return array
      * @throws \ImagickDrawException
      * @throws \ImagickException
      * @throws \ImagickPixelException
      * @throws \thiagoalessio\TesseractOCR\TesseractOcrException
      */
-    public function scan(): array
+    public function scan(array $externalScanResults = []): array
     {
         foreach ($this->getSchema()->getLabels() as $labelData) {
             if ($labelData->type === 'text') {
@@ -84,7 +86,7 @@ class Scanner
                     $labelData,
                     $this->getFolder()
                 );
-                $label->scan($this->getFolder());
+                $label->scan($this->getFolder(), $externalScanResults);
 
                 $this->addScanResult($label->getResult());
 
@@ -98,7 +100,7 @@ class Scanner
                     $labelData,
                     $this->getFolder()
                 );
-                $label->scan($this->getFolder());
+                $label->scan($this->getFolder(), $externalScanResults);
 
                 $this->addScanResult($label->getResult());
 
@@ -142,7 +144,7 @@ class Scanner
      * @throws \ImagickDrawException
      * @throws \ImagickException
      */
-    private function markMarks()
+    private function markMarks(): void
     {
         $this->setDraw();
         $this->getDraw()->setStrokeColor(new ImagickPixel('#00CC00'));
@@ -293,12 +295,6 @@ class Scanner
      */
     public function addScanResult(array $scanResult): array
     {
-//        if (empty($scanResult['category_id']) || empty($scanResult['type'])) {
-//            $this->scanResults[] = $scanResult;
-//
-//            return $this->scanResults;
-//        }
-
         $appendResult = true;
         foreach ($this->scanResults as &$result) {
             if ($result['category_id'] == $scanResult['category_id'] &&

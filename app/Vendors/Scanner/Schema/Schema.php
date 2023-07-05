@@ -63,7 +63,7 @@ class Schema
             [
                 'driver' => 'single',
                 'path'   => $folder . '/' . 'scan.log',
-                'level'  => env('SCANNER_LOG_MODE', 'debug'),
+                'level'  => config('scanner.log_mode'),
             ]
         );
 
@@ -281,7 +281,7 @@ class Schema
      */
     public static function read(mixed $svgContent, array $languages, int $page = 1): mixed
     {
-        $pageHeight  = env('SVG_PAGE_HEIGHT_MM');
+        $pageHeight  = config('scanner.svg.height');
         $deltaHeight = ($page - 1) * $pageHeight;
         $minHeight   = ($page - 1) * $pageHeight;
         $maxHeight   = $page * $pageHeight;
@@ -289,8 +289,8 @@ class Schema
         $document->loadXML($svgContent);
 
         $schema = [
-            'area_adjustment_percentage' => env('SCANNER_AREA_ADJUSTMENT_PERCENTAGE', 90),
-            'tolerance'                  => env('SCANNER_CHECKBOX_TOLERANCE', 60),
+            'area_adjustment_percentage' => config('scanner.area_adjustment'),
+            'tolerance'                  => config('scanner.checkbox_tolerance'),
             'languages'                  => $languages ?? ['eng'],
         ];
 
@@ -339,6 +339,7 @@ class Schema
                     'y'                  => round(self::getAttribute($rectangle, 'y', true) - $deltaHeight, 2),
                     'width'              => self::getAttribute($rectangle, 'width', true),
                     'height'             => self::getAttribute($rectangle, 'height', true),
+                    'label'               => self::getAttribute($rectangle, 'data-label'),
                     'type'               => self::getAttribute($rectangle, 'data-type'),
                     'category_id'        => self::getAttribute($rectangle, 'data-category-id'),
                     'parent_category_id' => self::getAttribute($rectangle, 'data-parent-category-id'),
@@ -358,10 +359,10 @@ class Schema
      */
     private static function getAttribute(mixed $object, string $name, bool $float = false): float|string
     {
-        $data = str_replace('mm', '', $object->getAttribute($name));
+        $data = $object->getAttribute($name);
 
         if ($float) {
-            $data = round($data, 2);
+            $data = round(str_replace('mm', '', $data), 2);
         }
 
         return $data;

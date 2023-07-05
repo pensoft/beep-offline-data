@@ -10,15 +10,16 @@ use thiagoalessio\TesseractOCR\TesseractOCR;
 
 class NumericLabel extends Label
 {
+    private array $whitelistCharacters = ['-' , '_' , ',' , '.'];
     /**
      * NumericLabel constructor.
      *
-     * @param \Imagick $image
+     * @param \Imagick                           $image
      * @param \App\Vendors\Scanner\Schema\Schema $schema
      * @param \App\Vendors\Scanner\Config\Config $config
      * @param \App\Vendors\Scanner\Converter\Dpm $dpm
-     * @param mixed $labelData
-     * @param string $folder
+     * @param mixed                              $labelData
+     * @param string                             $folder
      *
      * @throws \ImagickDrawException
      */
@@ -35,14 +36,16 @@ class NumericLabel extends Label
 
     /**
      * @param string $folder
+     * @param array  $externalScanResults
      *
+     * @return void
      * @throws \ImagickException
      * @throws \thiagoalessio\TesseractOCR\TesseractOcrException
      */
-    public function scan(string $folder)
+    public function scan(string $folder, array $externalScanResults = []): void
     {
         $labelImage = $this->getLabelImage();
-        $this->readText($labelImage, $folder);
+        $this->readText($labelImage, $folder, $externalScanResults);
         $this->getLog()->debug('SCANNED TEXT: ' . $this->getValue());
         $this->getLog()->debug('_______________________________________________');
 
@@ -74,7 +77,7 @@ class NumericLabel extends Label
      * @throws \ImagickException
      * @throws \ImagickPixelException
      */
-    public function markLabelImage(string $color = '#00CC00')
+    public function markLabelImage(string $color = '#00CC00'): void
     {
         parent::markLabelImage($color);
     }
@@ -83,7 +86,7 @@ class NumericLabel extends Label
      * @throws \ImagickException
      * @throws \thiagoalessio\TesseractOCR\TesseractOcrException
      */
-    public function readText(Imagick $image, string $folder)
+    public function readText(Imagick $image, string $folder, array $externalScanResults = []): void
     {
         /*
          * PSM: list of supported page segmentation modes
@@ -109,16 +112,55 @@ class NumericLabel extends Label
         //        $image->sharpenImage(0, 25);
         $image->writeImage($path);
 
-        $ocr = new TesseractOCR($path);
+        $value = null;
+        // Get the scan result from external OCR engines
+        $searchKey = $this->getLabelKey($this->getTextLabel());
+        $this->getLog()->debug('External results search key: ' . $searchKey);
+        if (!empty($externalScanResults[$searchKey])) {
+            $externalScan = $externalScanResults[$searchKey];
+            $this->getLog()->debug('EXTERNAL SCAN: ' . json_encode($externalScan));
 
-        if ($this->getType() === 'number') {
-            $ocr->psm(7);
-            $ocr->allowlist(range(0, 9), '-_,.');
-        } else {
-            $ocr->psm(10);
-            $ocr->allowlist(range(0, 9));
+            $value = implode(' ', array_column($externalScan, 'value'));
+            $this->getLog()->debug('EXTERNAL SCAN VALUE: ' . $value);
+
+            $value = $this->formatValueNumber($value);
+            $this->getLog()->debug('EXTERNAL SCAN VALUE FORMATTED: ' . $value);
         }
 
-        $this->setValue($ocr->run());
+        // If there is no scan result, scan with Tesseract
+        if (empty($value)) {
+            $ocr = new TesseractOCR($path);
+
+            if ($this->getType() === 'number') {
+                $ocr->psm(7);
+                $ocr->allowlist(range(0, 9), implode('', $this->whitelistCharacters));
+            } else {
+                $ocr->psm(10);
+                $ocr->allowlist(range(0, 9));
+            }
+
+            $value = $ocr->run();
+            $this->getLog()->debug('TESSERACT SCAN VALUE: ' . $value);
+        }
+
+        $this->setValue($value);
+    }
+
+    /**
+     * @param string $value
+     *
+     * @return string
+     */
+    private function formatValueNumber(string $value): string
+    {
+        $value = preg_replace("/[^0-9 " . implode('', $this->whitelistCharacters) . "]/", "", $value);
+
+        // force delete % symbol
+        $value = str_replace('%', '', $value);
+
+        // format floats
+        $value = str_replace(',', '.', $value);
+
+        return trim($value);
     }
 }

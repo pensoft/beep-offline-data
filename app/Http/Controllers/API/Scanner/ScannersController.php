@@ -27,7 +27,7 @@ class ScannersController extends APIsController
      */
     public function validateScanRequest(Request $request)
     {
-        if ($request->header('token') !== env('SCANNER_TOKEN_SECRET')) {
+        if ($request->header('token') !== config('scanner.token_secret')) {
             $this->addError('Wrong Token');
             $this->setResponseStatus(JsonResponse::HTTP_UNAUTHORIZED);
 
