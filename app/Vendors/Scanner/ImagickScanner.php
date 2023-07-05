@@ -7,14 +7,15 @@ use App\Vendors\Scanner\Distortion\PerspectiveDistortion;
 use App\Vendors\Scanner\Marker\MarkRecognition;
 use App\Vendors\Scanner\Scanner\Scanner;
 use App\Vendors\Scanner\Schema\Schema;
+use App\Vendors\Scanner\Services\AWS\Textract\DocumentAnalyzer;
 use App\Vendors\Scanner\Traits\Scanner\ScannerTrait;
 use Carbon\Carbon;
+use DOMDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
-use DOMDocument;
 
 class ImagickScanner
 {
@@ -50,6 +51,8 @@ class ImagickScanner
     /** @var array */
     private array $scanResults = [];
 
+    private string $ocrEngine;
+
     /**
      * ImagickScanner constructor.
      *
@@ -58,21 +61,16 @@ class ImagickScanner
     public function __construct(Request $request)
     {
         $this->setRequest($request);
-        $scanDirectory = $this->getDirectoryPath(env('SCANNER_BASE_DIRECTORY'), $request->ip(), Carbon::now());
+        $scanDirectory = $this->getDirectoryPath(config('scanner.base_directory'), $request->ip(), Carbon::now());
         $this->setScanDirectory($scanDirectory);
         $this->initializeDirectories($scanDirectory);
 
-        $log = Log::build(
-            [
-                'driver' => 'single',
-                'path'   => storage_path($this->getScanDirectory()) . '/' . 'scan.log',
-                'level'  => env('SCANNER_LOG_MODE', 'debug'),
-            ]
-        );
-        $this->setLog($log);
+        $this->initLog($this->getScanDirectory());
+
         $this->setSvg($request->get('svg'));
         $this->storeSvg($scanDirectory);
-        
+
+        $this->setOcrEngine($request->get('ocr_engine', 'tesseract'));
         $this->setBlobReturns($request);
         $this->setLanguages($request);
         $this->setAppVersion();
@@ -93,10 +91,12 @@ class ImagickScanner
             // Set page subdirectory
             $folder = $this->getScanDirectory() . '/' . 'page-' . $page;
             $this->createDirectory($folder);
+            $this->initLog($folder);
 
             // Store scanned image
             $extension    = $this->getExtensionFromBlob($imageData['image'], true);
-            $originalFile = $folder . '/' . 'scan.' . $extension;
+            $filename     = 'scan.' . $extension;
+            $originalFile = $folder . '/' . $filename;
             File::put(storage_path($originalFile), $this->getBlobContents($imageData['image']));
 
             // Init Imagick object with the original scanned image
@@ -116,19 +116,38 @@ class ImagickScanner
             $markers = $this->getMarkers($image, $schema, $folder);
             $config  = $this->createConfig($markers, $folder);
 
+            $this->getLog()->info('OCR Engine: ' . $this->getOcrEngine());
             // Scan the image
-            $scanner     = new Scanner($image, $schema, $config, storage_path($folder));
-            $scanResults = $scanner->scan();
+            $scanner                = new Scanner($image, $schema, $config, storage_path($folder));
+            $externalScannerResults = $this->getExternalScannerResults(storage_path($folder), $filename);
+            $scanResults            = $scanner->scan($externalScannerResults);
 
-            $this->storeScanResults($scanResults, $folder);
+            $this->storeScanResults($this->parseScanResults($scanResults), $folder);
             $this->addScanResult($page, $this->parseScanResults($scanResults));
         }
 
-        if (!env('SCANNER_MODE_DEBUG')) {
+        if (!config('scanner.mode_debug')) {
             if (File::isDirectory(storage_path($this->getScanDirectory()))) {
                 Storage::deleteDirectory(str_replace('app/', '', $this->getScanDirectory()));
             }
         }
+    }
+
+    /**
+     * @param string $folder
+     * @param string $filename
+     *
+     * @return array
+     */
+    public function getExternalScannerResults(string $folder, string $filename): array
+    {
+        $results = [];
+        if ($this->getOcrEngine() === 'aws') {
+            $documentAnalyzer = new DocumentAnalyzer($folder, $filename);
+            $results          = $documentAnalyzer->analyze();
+        }
+
+        return $results;
     }
 
     /**
@@ -193,7 +212,7 @@ class ImagickScanner
     /**
      * @param string $directory
      */
-    private function initializeDirectories(string $directory)
+    private function initializeDirectories(string $directory): void
     {
         $scanDirectory = '';
         foreach (explode('/', $directory) as $subDirectory) {
@@ -205,7 +224,7 @@ class ImagickScanner
     /**
      * @param $directory
      */
-    private function createDirectory($directory)
+    private function createDirectory($directory): void
     {
         if (!File::isDirectory(storage_path($directory))) {
             File::makeDirectory(storage_path($directory), 0775, true);
@@ -274,6 +293,24 @@ class ImagickScanner
     }
 
     /**
+     * @param string $folder
+     *
+     * @return void
+     */
+    public function initLog(string $folder): void
+    {
+        $log = Log::build(
+            [
+                'driver' => 'single',
+                'path'   => storage_path($folder) . '/' . 'scan.log',
+                'level'  => config('scanner.log_mode'),
+            ]
+        );
+        
+        $this->setLog($log);
+    }
+
+    /**
      * @return \Psr\Log\LoggerInterface
      */
     public function getLog(): \Psr\Log\LoggerInterface
@@ -325,7 +362,7 @@ class ImagickScanner
      * @param array  $scanResults
      * @param string $folder
      */
-    private function storeScanResults(array $scanResults, string $folder)
+    private function storeScanResults(array $scanResults, string $folder): void
     {
         $results = json_encode($scanResults, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         File::put(storage_path($folder) . '/' . 'results.json', $results);
@@ -380,7 +417,7 @@ class ImagickScanner
      *
      * @return void
      */
-    private function storeSvg(string $folder)
+    private function storeSvg(string $folder): void
     {
         File::put(storage_path($folder) . '/' . 'schema.svg', $this->getSvg());
     }
@@ -430,9 +467,12 @@ class ImagickScanner
      */
     public function setBlobReturns(Request $request): void
     {
-        $settings = !empty($request->get('settings', [])) ? $request->get('settings') : [];
+        $settings    = $request->get('settings', []);
+        $blobReturns = $settings['return_blob'] ?? [];
 
-        $this->blobReturns = !empty($settings['return_blob']) ? $settings['return_blob'] : [];
+        foreach ($blobReturns as $type) {
+            $this->blobReturns[] = mb_strtolower($type);
+        }
     }
 
     /**
@@ -453,5 +493,31 @@ class ImagickScanner
 
         $svg              = $document->getElementsByTagName('svg');
         $this->appVersion = $svg[0]->getAttribute('data-app-version') ?? '';
+    }
+
+    /**
+     * @return string
+     */
+    public function getOcrEngine(): string
+    {
+        return $this->ocrEngine;
+    }
+
+    /**
+     * @param string $ocrEngine
+     */
+    public function setOcrEngine(string $ocrEngine): void
+    {
+        $this->ocrEngine = mb_strtolower(config('scanner.ocr_engine'));
+
+        if (!empty($ocrEngine) && in_array(mb_strtolower($ocrEngine), ['aws', 'textract'])) {
+            $hasAwsSettings = !empty(config('scanner.aws.key')) &&
+                              !empty(config('scanner.aws.secret')) &&
+                              !empty(config('scanner.aws.region')) &&
+                              !empty(config('scanner.aws.version'));
+            if ($hasAwsSettings) {
+                $this->ocrEngine = 'aws';
+            }
+        }
     }
 }
