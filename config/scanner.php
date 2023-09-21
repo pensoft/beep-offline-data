@@ -36,4 +36,8 @@ return [
         'region'  => env('AWS_DEFAULT_REGION'),
         'version' => env('AWS_TEXTRACT_VERSION', 'latest'),
     ],
+
+    'images' => [
+        'max_width' => env('SCAN_IMAGE_MAX_PX_WIDTH'),
+    ],
 ];

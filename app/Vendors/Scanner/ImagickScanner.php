@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Imagick;
+use Intervention\Image\Facades\Image as InterventionImage;
 
 class ImagickScanner
 {
@@ -51,7 +52,11 @@ class ImagickScanner
     /** @var array */
     private array $scanResults = [];
 
+    /** @var string */
     private string $ocrEngine;
+
+    /** @var int */
+    private int $imageMaxWidth;
 
     /**
      * ImagickScanner constructor.
@@ -74,15 +79,17 @@ class ImagickScanner
         $this->setBlobReturns($request);
         $this->setLanguages($request);
         $this->setAppVersion();
+        $this->setImageMaxWidth();
     }
 
     /**
+     * @return void
      * @throws \ImagickDrawException
      * @throws \ImagickException
      * @throws \ImagickPixelException
      * @throws \thiagoalessio\TesseractOCR\TesseractOcrException
      */
-    public function scan()
+    public function scan(): void
     {
         foreach ($this->getRequest()->get('images') as $imageData) {
             // Scanned page number
@@ -98,6 +105,9 @@ class ImagickScanner
             $filename     = 'scan.' . $extension;
             $originalFile = $folder . '/' . $filename;
             File::put(storage_path($originalFile), $this->getBlobContents($imageData['image']));
+
+            // Downsize the image if the width exceeds the max width setting
+            $this->resizeImage($originalFile, $this->getImageMaxWidth());
 
             // Init Imagick object with the original scanned image
             $image = new Imagick(storage_path($originalFile));
@@ -130,6 +140,25 @@ class ImagickScanner
             if (File::isDirectory(storage_path($this->getScanDirectory()))) {
                 Storage::deleteDirectory(str_replace('app/', '', $this->getScanDirectory()));
             }
+        }
+    }
+
+    /**
+     * @param string $filepath
+     * @param int    $width
+     *
+     * @return void
+     */
+    private function resizeImage(string $filepath, int $width): void
+    {
+        $this->getLog()->debug('Resize image width setting: ' . $width);
+        if ($width > 0) {
+            $interventionImage = InterventionImage::make(storage_path($filepath));
+
+            $interventionImage->resize($width, null, function ($constraint) {
+                $constraint->aspectRatio();
+                $constraint->upsize();
+            })->save(storage_path($filepath));
         }
     }
 
@@ -306,7 +335,7 @@ class ImagickScanner
                 'level'  => config('scanner.log_mode'),
             ]
         );
-        
+
         $this->setLog($log);
     }
 
@@ -519,5 +548,21 @@ class ImagickScanner
                 $this->ocrEngine = 'aws';
             }
         }
+    }
+
+    /**
+     * @return int
+     */
+    public function getImageMaxWidth(): int
+    {
+        return $this->imageMaxWidth;
+    }
+
+    /**
+     * @return void
+     */
+    public function setImageMaxWidth(): void
+    {
+        $this->imageMaxWidth = (int)config('scanner.images.max_width');
     }
 }
