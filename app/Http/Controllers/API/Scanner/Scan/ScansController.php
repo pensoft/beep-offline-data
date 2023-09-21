@@ -5,6 +5,8 @@ namespace App\Http\Controllers\API\Scanner\Scan;
 use App\Http\Controllers\API\Scanner\ScannersController;
 use App\Vendors\Scanner\ImagickScanner;
 use App\Vendors\Scanner\Traits\Scanner\ScannerTrait;
+use Error;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -26,10 +28,6 @@ class ScansController extends ScannersController
      * @param \Illuminate\Http\Request $request
      *
      * @return \Illuminate\Http\JsonResponse
-     * @throws \ImagickDrawException
-     * @throws \ImagickException
-     * @throws \ImagickPixelException
-     * @throws \thiagoalessio\TesseractOCR\TesseractOcrException
      */
     public function scan(Request $request): JsonResponse
     {
@@ -39,15 +37,23 @@ class ScansController extends ScannersController
             return response()->json(['errors' => $this->getErrors()], JsonResponse::HTTP_BAD_REQUEST);
         }
 
-        $imagickScanner = new ImagickScanner($request);
-        $imagickScanner->scan();
+        try {
+            $imagickScanner = new ImagickScanner($request);
+            $imagickScanner->scan();
 
-        return response()
-            ->json(
-                [
-                    'app_version' => $imagickScanner->getAppVersion(),
-                    'scans'       => $imagickScanner->getScanResults(),
-                ]
-            );
+            return response()
+                ->json(
+                    [
+                        'app_version' => $imagickScanner->getAppVersion(),
+                        'scans'       => $imagickScanner->getScanResults(),
+                    ]
+                );
+        } catch (Exception $e) {
+            $this->addError($e->getMessage());
+        } catch (Error $e) {
+            $this->addError($e->getMessage());
+        }
+
+        return response()->json(['errors' => $this->getErrors()], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);
     }
 }
