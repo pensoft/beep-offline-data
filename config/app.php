@@ -41,7 +41,7 @@ return [
     |
     */
 
-    'debug' => (bool) env('APP_DEBUG', false),
+    'debug' => (bool)env('APP_DEBUG', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -195,6 +195,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
 
+        \Intervention\Image\ImageServiceProvider::class,
     ],
 
     /*
@@ -208,8 +209,11 @@ return [
     |
     */
 
-    'aliases' => Facade::defaultAliases()->merge([
-        // 'ExampleClass' => App\Example\ExampleClass::class,
-    ])->toArray(),
+    'aliases' => Facade::defaultAliases()
+                       ->merge(
+                           [
+                               'Image' => Intervention\Image\Facades\Image::class,
+                           ]
+                       )->toArray(),
 
 ];

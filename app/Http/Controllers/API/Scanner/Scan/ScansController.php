@@ -9,7 +9,6 @@ use Error;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Throwable;
 
 class ScansController extends ScannersController
 {
@@ -50,11 +49,9 @@ class ScansController extends ScannersController
                     ]
                 );
         } catch (Exception $e) {
-            $this->addError('Exception: ' . $e->getMessage());
+            $this->addError($e->getMessage());
         } catch (Error $e) {
-            $this->addError('Exception: ' . $e->getMessage());
-        } catch (Throwable $e) {
-            $this->addError('Throwable: ' . $e->getMessage());
+            $this->addError($e->getMessage());
         }
 
         return response()->json(['errors' => $this->getErrors()], JsonResponse::HTTP_INTERNAL_SERVER_ERROR);

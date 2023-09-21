@@ -10,7 +10,8 @@ use thiagoalessio\TesseractOCR\TesseractOCR;
 
 class NumericLabel extends Label
 {
-    private array $whitelistCharacters = ['-' , '_' , ',' , '.'];
+    private array $whitelistCharacters = ['-', '_', ',', '.'];
+
     /**
      * NumericLabel constructor.
      *
@@ -106,10 +107,8 @@ class NumericLabel extends Label
         13    Raw line. Treat the image as a single text line, bypassing hacks that are Tesseract-specific.
         */
 
-        $path = $folder . '/' . $this->getParentCategoryId() . '_' . $this->getCategoryId() .
-                '_' . rand(10, 10000) . '.jpg';
-        //        $image->resizeImage($image->getImageWidth() * 5, $image->getImageHeight() * 5, Imagick::FILTER_LANCZOS, 1);
-        //        $image->sharpenImage(0, 25);
+        $path = $folder . '/';
+        $path .= $this->getParentCategoryId() . '_' . $this->getCategoryId() . '_' . rand(10, 10000) . '.jpg';
         $image->writeImage($path);
 
         $value = null;
@@ -125,10 +124,8 @@ class NumericLabel extends Label
 
             $value = $this->formatValueNumber($value);
             $this->getLog()->debug('EXTERNAL SCAN VALUE FORMATTED: ' . $value);
-        }
-
-        // If there is no scan result, scan with Tesseract
-        if (empty($value)) {
+        } else {
+            // If there is no scan result, scan with Tesseract
             $ocr = new TesseractOCR($path);
 
             if ($this->getType() === 'number') {
