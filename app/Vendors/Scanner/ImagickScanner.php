@@ -104,10 +104,12 @@ class ImagickScanner
             $extension    = $this->getExtensionFromBlob($imageData['image'], true);
             $filename     = 'scan.' . $extension;
             $originalFile = $folder . '/' . $filename;
+            $resizedFile = $folder . '/scan_resized.' . $extension;
+                        
             File::put(storage_path($originalFile), $this->getBlobContents($imageData['image']));
 
             // Downsize the image if the width exceeds the max width setting
-            $this->resizeImage($originalFile, $this->getImageMaxWidth());
+            $this->resizeImage($originalFile, $resizedFile, $this->getImageMaxWidth());
 
             // Init Imagick object with the original scanned image
             $image = new Imagick(storage_path($originalFile));
@@ -145,20 +147,25 @@ class ImagickScanner
 
     /**
      * @param string $filepath
+		 * @param string $filepath_resize
      * @param int    $width
      *
      * @return void
      */
-    private function resizeImage(string $filepath, int $width): void
+    private function resizeImage(string $filepath, string $filepath_resize, int $width): void
     {
         $this->getLog()->debug('Resize image width setting: ' . $width);
+        
         if ($width > 0) {
             $interventionImage = InterventionImage::make(storage_path($filepath));
+            
+            $img_width = InterventionImage::make(storage_path($filepath))->width();
 
-            $interventionImage->resize($width, null, function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            })->save(storage_path($filepath));
+						if($width < $img_width){
+								$interventionImage->resize($width, null, function ($constraint) {
+                $constraint->aspectRatio();                
+            	})->rotate(-90)->save(storage_path($filepath));            	
+						}
         }
     }
 
